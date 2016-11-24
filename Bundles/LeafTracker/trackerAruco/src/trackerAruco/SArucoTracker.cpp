@@ -207,7 +207,7 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             catch( cv::Exception& e )
             {
                 const char* err_msg = e.what();
-                std::cout << "Detect marker exception : " << err_msg << std::endl;
+                OSLM_ERROR("Detect marker exception : " << err_msg);
             }
 
 
@@ -274,7 +274,7 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                 catch( cv::Exception& e )
                 {
                     const char* err_msg = e.what();
-                    std::cout << "draw marker exception : " << err_msg << std::endl;
+                    OSLM_ERROR("draw marker exception : " << err_msg);
                 }
             }
 
