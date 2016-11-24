@@ -37,13 +37,6 @@ fwServicesRegisterMacro(::tracker::ITracker, ::trackerAruco::SArucoTracker, ::fw
 
 const ::fwCom::Signals::SignalKeyType SArucoTracker::s_DETECTION_DONE_SIG = "detectionDone";
 
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_METHOD_SLOT           = "changeMethod";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_BLOCKSIZE_SLOT        = "changeBlockSize";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_CONSTANT_SLOT         = "changeConstant";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_BORDERWIDTH_SLOT      = "changeBorderWidth";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_PATTERNWIDTH_SLOT     = "changePatternWidth";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_CORNERREFINEMENT_SLOT = "changeCornerRefinement";
-const ::fwCom::Slots::SlotKeyType SArucoTracker::s_CHANGE_SPEED_SLOT            = "changeSpeed";
 const ::fwCom::Slots::SlotKeyType SArucoTracker::s_DISPLAY_TAGS_SLOT            = "displayTags";
 
 const ::fwCom::Slots::SlotKeyType SArucoTracker::s_DETECT_MARKER_SLOT = "detectMarker";
@@ -54,24 +47,18 @@ const ::fwServices::IService::KeyType s_TAGTL_INOUT_GROUP = "tagTL";
 
 //-----------------------------------------------------------------------------
 
-SArucoTracker::SArucoTracker() throw () :
-    m_arUcoTracker(nullptr),
-    m_camParameters(nullptr),
-    m_threshold("auto"),
-    m_borderWidth(0.25),
-    m_patternWidth(80),
+SArucoTracker::SArucoTracker() throw ():
     m_lastTimestamp(0),
     m_isInitialized(false),
-    m_blockSize(7.),
-    m_constant(7.),
     m_debugMarkers(false),
-    m_speed(3),
-    m_thresholdMethod(::aruco::MarkerDetector::ADPT_THRES),
-    m_cornerRefinement(::aruco::MarkerDetector::SUBPIX)
+    m_parameters(nullptr)
 {
     m_sigDetectionDone = newSignal<DetectionDoneSignalType>(s_DETECTION_DONE_SIG);
 
-    newSlot(s_CHANGE_METHOD_SLOT, &SArucoTracker::setMethod, this);
+    newSlot(s_DETECT_MARKER_SLOT, &SArucoTracker::detectMarker, this);
+
+    //FIXME : Replace this by slots from SParameters (double, bool, etc...)
+    /*newSlot(s_CHANGE_METHOD_SLOT, &SArucoTracker::setMethod, this);
     newSlot(s_CHANGE_CORNERREFINEMENT_SLOT, &SArucoTracker::setCornerRefinement, this);
     newSlot(s_CHANGE_BLOCKSIZE_SLOT, &SArucoTracker::setBlockSize, this);
     newSlot(s_CHANGE_CONSTANT_SLOT, &SArucoTracker::setConstant, this);
@@ -79,13 +66,14 @@ SArucoTracker::SArucoTracker() throw () :
     newSlot(s_CHANGE_PATTERNWIDTH_SLOT, &SArucoTracker::setPatternWidth, this);
     newSlot(s_DETECT_MARKER_SLOT, &SArucoTracker::detectMarker, this);
     newSlot(s_CHANGE_SPEED_SLOT, &SArucoTracker::setSpeed, this);
-    newSlot(s_DISPLAY_TAGS_SLOT, &SArucoTracker::displayTags, this);
+    newSlot(s_DISPLAY_TAGS_SLOT, &SArucoTracker::displayTags, this);*/
 }
 
 //-----------------------------------------------------------------------------
 
 SArucoTracker::~SArucoTracker() throw ()
 {
+    delete m_parameters;
 }
 
 //-----------------------------------------------------------------------------
@@ -94,6 +82,12 @@ void SArucoTracker::configuring() throw (::fwTools::Failed)
 {
     ::fwRuntime::ConfigurationElement::sptr cfg = m_configuration->findConfigurationElement("config");
     SLM_ASSERT("Tag 'config' not found.", cfg);
+
+
+    //TODO : Change parameters if we need to.
+    m_parameters = new ::cv::aruco::DetectorParameters();
+
+    m_dictionary = ::cv::aruco::getPredefinedDictionary(::cv::aruco::DICT_ARUCO_ORIGINAL);
 
     // gets marker informations
     {
@@ -112,55 +106,6 @@ void SArucoTracker::configuring() throw (::fwTools::Failed)
                 markersID.push_back(id);
             }
             m_markers.push_back(markersID);
-        }
-    }
-
-    // gets pattern width
-    ::fwRuntime::ConfigurationElement::sptr cfgPatternWidth = cfg->findConfigurationElement("patternWidth");
-    if (cfgPatternWidth)
-    {
-        m_patternWidth = ::boost::lexical_cast< double >(cfgPatternWidth->getValue());
-    }
-
-    // gets threshold parameters
-    {
-        ::fwRuntime::ConfigurationElement::sptr cfgThreshold = cfg->findConfigurationElement("threshold");
-        if(cfgThreshold)
-        {
-            ::fwRuntime::ConfigurationElement::sptr cfgMethod    = cfgThreshold->findConfigurationElement("method");
-            ::fwRuntime::ConfigurationElement::sptr cfgBlockSize = cfgThreshold->findConfigurationElement("blockSize");
-            ::fwRuntime::ConfigurationElement::sptr cfgConstant  = cfgThreshold->findConfigurationElement("constant");
-
-            std::string thresholdMethod = cfgMethod->getValue();
-            if(thresholdMethod == "ADPT_THRES")
-            {
-                m_thresholdMethod = ::aruco::MarkerDetector::ADPT_THRES;
-            }
-            else if(thresholdMethod == "FIXED_THRES")
-            {
-                m_thresholdMethod = ::aruco::MarkerDetector::FIXED_THRES;
-            }
-            else if(thresholdMethod == "CANNY")
-            {
-                m_thresholdMethod = ::aruco::MarkerDetector::CANNY;
-            }
-            else
-            {
-                SLM_FATAL("Threshold method ("+thresholdMethod+") set in parameter is not allowed. "
-                          "Allowed values : ADPT_THRES, FIXED_THRES, CANNY");
-            }
-
-            std::string blocksize = cfgBlockSize->getValue();
-            if(!blocksize.empty())
-            {
-                m_blockSize = ::boost::lexical_cast<double>(blocksize);
-            }
-
-            std::string constant = cfgConstant->getValue();
-            if(!constant.empty())
-            {
-                m_constant = ::boost::lexical_cast<double>(constant);
-            }
         }
     }
 
@@ -189,8 +134,6 @@ void SArucoTracker::starting() throw (::fwTools::Failed)
 
 void SArucoTracker::stopping() throw (::fwTools::Failed)
 {
-    delete m_camParameters;
-    delete m_arUcoTracker;
     m_isInitialized = false;
 }
 
@@ -204,17 +147,17 @@ void SArucoTracker::updating() throw (::fwTools::Failed)
 
 void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
 {
+
+
+    // OpenCv Aruco Detection
+    std::vector< std::vector< ::cv::Point2f> > markerCorners, rejectedCandidates;
+    std::vector< int > detectedMarkers;
+
     if (timestamp > m_lastTimestamp)
     {
         ::arData::FrameTL::csptr frameTL = this->getInput< ::arData::FrameTL >(s_FRAMETL_INPUT);
         if(!m_isInitialized)
         {
-            m_arUcoTracker = new ::aruco::MarkerDetector();
-            m_arUcoTracker->setThresholdMethod(m_thresholdMethod);
-            m_arUcoTracker->setThresholdParams(m_blockSize, m_constant);
-            m_arUcoTracker->setCornerRefinementMethod(::aruco::MarkerDetector::NONE);
-            m_arUcoTracker->setBorderDistance(0.01f);
-
             ::arData::Camera::csptr arCam = this->getInput< ::arData::Camera >(s_CAMERA_INPUT);
             ::cv::Mat cameraMatrix        = ::cv::Mat::eye(3, 3, CV_64F);
             ::cv::Mat distorsionCoeff     = ::cv::Mat::eye(4, 1, CV_64F);
@@ -230,18 +173,8 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             {
                 distorsionCoeff.at<double>(static_cast<int>(i),0) = arCam->getDistortionCoefficient()[i];
             }
-
-            //size of the image
-            ::cv::Size2i size(static_cast<int>(frameTL->getWidth()), static_cast<int>(frameTL->getHeight()));
-            m_camParameters = new ::aruco::CameraParameters(cameraMatrix, distorsionCoeff, size);
-            m_isInitialized = true;
         }
 
-        //if parameters changed
-        m_arUcoTracker->setThresholdMethod(m_thresholdMethod);
-        m_arUcoTracker->setThresholdParams(m_blockSize, m_constant);
-        m_arUcoTracker->setCornerRefinementMethod(m_cornerRefinement);
-        m_arUcoTracker->setDesiredSpeed(static_cast<int>(m_speed));
 
         ::fwCore::HiResClock::HiResClockType timestamp    = frameTL->getNewerTimestamp();
         const CSPTR(::arData::FrameTL::BufferType) buffer = frameTL->getClosestBuffer(timestamp);
@@ -263,21 +196,26 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             // a RGB image. However we have a RGBA image so we must make the conversion ourselves.
             cv::Mat grey;
             //inImage is BGRA (see constructor of ::cv::Mat)
-            cv::cvtColor(inImage, grey, CV_BGRA2GRAY);
+            cv::cvtColor(inImage, grey, CV_BGRA2RGB);
 
             //Ok, let's detect
-            m_arUcoTracker->detect(grey, detectedMarkers, *m_camParameters, static_cast<float>(m_patternWidth/1000.));
 
-            //For Debug purpose
-            //::cv::imshow("Threshold", m_arUcoTracker->getThresholdedImage());
+            try
+            {
+                ::cv::aruco::detectMarkers(grey, m_dictionary, markerCorners, detectedMarkers);
+            }
+            catch( cv::Exception& e )
+            {
+                const char* err_msg = e.what();
+                std::cout << "Detect marker exception : " << err_msg << std::endl;
+            }
+
 
             //for each marker, draw info and its boundaries in the image
             unsigned int index = 0;
             size_t tagTLIndex  = 0;
             for(const auto& markersID : m_markers)
             {
-                unsigned int color[3] = {0,0,0};
-                color[index]                      = 255;
                 ::arData::MarkerTL::sptr markerTL =
                     this->getInOut< ::arData::MarkerTL >(s_TAGTL_INOUT_GROUP, tagTLIndex);
                 SPTR(::arData::MarkerTL::BufferType) trackerObject;
@@ -289,11 +227,6 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                     {
                         if (detectedMarkers[i].id == markerID)
                         {
-                            if(m_debugMarkers)
-                            {
-                                detectedMarkers[i].draw(inImage, cvScalar(color[0], color[1], color[2], 255), 2);
-                            }
-
                             //Push matrix
                             float markerBuffer[8];
                             for (size_t j = 0; j < 4; ++j)
@@ -328,6 +261,23 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                 }
                 ++tagTLIndex;
             }
+
+            if(m_debugMarkers)
+            {
+                ::cv::Mat copyIm;
+                grey.copyTo(copyIm);
+                try
+                {
+                    ::cv::aruco::drawDetectedMarkers(copyIm,markerCorners,detectedMarkers);
+                    ::cv::imshow("Aruco Tag ",copyIm);
+                }
+                catch( cv::Exception& e )
+                {
+                    const char* err_msg = e.what();
+                    std::cout << "draw marker exception : " << err_msg << std::endl;
+                }
+            }
+
             //Emit
             m_sigDetectionDone->asyncEmit(timestamp);
         }
@@ -335,100 +285,6 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
 }
 
 //-----------------------------------------------------------------------------
-
-void SArucoTracker::setMethod(unsigned int method)
-{
-    if(method == 0)
-    {
-        m_thresholdMethod = ::aruco::MarkerDetector::ADPT_THRES;
-    }
-    else if(method == 1)
-    {
-        m_thresholdMethod = ::aruco::MarkerDetector::FIXED_THRES;
-    }
-    else if(method == 2)
-    {
-        m_thresholdMethod = ::aruco::MarkerDetector::CANNY;
-    }
-    else
-    {
-        SLM_FATAL("Threshold method set in parameter is not allowed. "
-                  "Allowed values : ADPT_THRES, FIXED_THRES, CANNY");
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setBlockSize(double size)
-{
-    m_blockSize = size;
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setConstant(double constant)
-{
-    m_constant = constant;
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setBorderWidth(double borderWidth)
-{
-    m_borderWidth = borderWidth;
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setPatternWidth(double patternWidth)
-{
-    m_patternWidth = patternWidth;
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setCornerRefinement(unsigned int method)
-{
-    if(method == ::aruco::MarkerDetector::NONE)
-    {
-        m_cornerRefinement = ::aruco::MarkerDetector::NONE;
-    }
-    else if(method == ::aruco::MarkerDetector::HARRIS)
-    {
-        m_cornerRefinement = ::aruco::MarkerDetector::HARRIS;
-    }
-    else if(method == ::aruco::MarkerDetector::SUBPIX)
-    {
-        m_cornerRefinement = ::aruco::MarkerDetector::SUBPIX;
-    }
-    else if(method == ::aruco::MarkerDetector::LINES)
-    {
-        m_cornerRefinement = ::aruco::MarkerDetector::LINES;
-    }
-    else
-    {
-        //?
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::setSpeed(unsigned int value)
-{
-    if(value <= 3)
-    {
-        m_speed = value;
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void SArucoTracker::displayTags(bool b)
-{
-    m_debugMarkers = b;
-}
-
-//------------------------------------------------------------------------------
 
 ::fwServices::IService::KeyConnectionsMap SArucoTracker::getAutoConnections() const
 {

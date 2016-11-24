@@ -134,50 +134,10 @@
                 <in key="camera" uid="camera" />
                 <inout key="frameTL" uid="frameTL" />
             </service>
-         
+
             <connect>
                 <signal>camera/idModified</signal>
                 <slot>frameGrabber/stopCamera</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/methodChanged</signal>
-                <slot>tracker/changeMethod</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/cornerMethodChanged</signal>
-                <slot>tracker/changeCornerRefinement</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/constantChanged</signal>
-                <slot>tracker/changeConstant</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/blockSizeChanged</signal>
-                <slot>tracker/changeBlockSize</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/borderWidthChanged</signal>
-                <slot>tracker/changeBorderWidth</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/patternWidthChanged</signal>
-                <slot>tracker/changePatternWidth</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/speedChanged</signal>
-                <slot>tracker/changeSpeed</slot>
-            </connect>
-
-            <connect>
-                <signal>trackingEditor/tagsDisplayed</signal>
-                <slot>tracker/displayTags</slot>
             </connect>
 
             <start uid="mainFrame" />

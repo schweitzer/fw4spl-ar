@@ -19,7 +19,7 @@
 
 #include <fwServices/macros.hpp>
 
-#include <aruco/markerdetector.h>
+#include <opencv2/aruco.hpp>
 
 namespace trackerAruco
 {
@@ -87,23 +87,9 @@ public:
     /// Key in m_signals map of signal m_sigDetectionDone
     TRACKERARUCO_API static const ::fwCom::Signals::SignalKeyType s_DETECTION_DONE_SIG;
 
-    ///Slot called when threshold method changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_METHOD_SLOT;
-    ///Slot called when block size changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_BLOCKSIZE_SLOT;
-    ///Slot called when constant parameters changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_CONSTANT_SLOT;
-    ///Slot called when border width changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_BORDERWIDTH_SLOT;
-    ///Slot called when pattern width changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_PATTERNWIDTH_SLOT;
-    ///Slot called when method for corner refinement changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_CORNERREFINEMENT_SLOT;
     ///Slot called when debug mode is enabled/disabled
     TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_DISPLAY_TAGS_SLOT;
-    ///Slot called when speed of detection changed
-    TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_CHANGE_SPEED_SLOT;
-    ///Slot called when marker is detected
+
     TRACKERARUCO_API static const ::fwCom::Slots::SlotKeyType s_DETECT_MARKER_SLOT;
 
     typedef std::vector< int >          MarkerIDType;
@@ -150,38 +136,8 @@ protected:
 
     /// Detect marker slot
     void detectMarker(::fwCore::HiResClock::HiResClockType timestamp);
-
-    /// Threshold method slot
-    void setMethod(unsigned int);
-    /// 'Constant' parameters slot
-    void setConstant(double);
-    /// Block size slot
-    void setBlockSize(double);
-    /// BorderWidth slot (not used)
-    void setBorderWidth(double);
-    /// PatternWidth slot (not used)
-    void setPatternWidth(double);
-    /// Method for corner refinement slot
-    void setCornerRefinement(unsigned int);
-    /// Method that change speed of detection (the lower the better but also the slower)
-    void setSpeed(unsigned int);
-    /// Method that display tags
-    void displayTags(bool);
-
 private:
 
-    /// Marker vector [[0,1,2],[4,5,6]]
-    MarkerIDVectorType m_markers;
-    /// Marker detector
-    ::aruco::MarkerDetector* m_arUcoTracker;
-    /// arUCO camera parameters
-    ::aruco::CameraParameters* m_camParameters;
-    /// Threshold, value must be a double or "auto"
-    std::string m_threshold;
-    /// Marker border width.
-    double m_borderWidth;
-    /// Marker pattern width.
-    double m_patternWidth;
 
     /// Last timestamp
     ::fwCore::HiResClock::HiResClockType m_lastTimestamp;
@@ -189,22 +145,13 @@ private:
     /// True if tracker is initialized
     bool m_isInitialized;
 
-    /// BlockSize of the pixel neighborhood that is used to calculate a threshold value for the pixel
-    double m_blockSize;
-
-    /// The constant subtracted from the mean or weighted mean
-    double m_constant;
-
-    /// Display markers in the image or not
     bool m_debugMarkers;
 
-    /// Speed of detection
-    unsigned int m_speed;
+    /// Marker vector [[0,1,2],[4,5,6]]
+    MarkerIDVectorType m_markers;
 
-    /// The threshold method
-    ::aruco::MarkerDetector::ThresholdMethods m_thresholdMethod;
-    ::aruco::MarkerDetector::CornerRefinementMethod m_cornerRefinement;
-
+    ::cv::aruco::DetectorParameters* m_parameters;
+    ::cv::aruco::Dictionary m_dictionary;
     /// Signal to emit when
     DetectionDoneSignalType::sptr m_sigDetectionDone;
 };
