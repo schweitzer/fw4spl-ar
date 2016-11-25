@@ -97,6 +97,10 @@ void SArucoTracker::configuring() throw (::fwTools::Failed)
     {
         m_debugMarkers = true;
     }
+
+    m_dictionary  = ::cv::aruco::getPredefinedDictionary(::cv::aruco::DICT_ARUCO_ORIGINAL);
+
+
 }
 
 //-----------------------------------------------------------------------------
@@ -132,13 +136,6 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
 
     // OpenCv Aruco Detection
     std::vector< std::vector< ::cv::Point2f> > markerCorners, rejectedCandidates;
-
-    //TODO : Change parameters if we need to.
-    ::cv::aruco::DetectorParameters  parameters;
-    ::cv::aruco::Dictionary  dictionary;
-
-    dictionary  = ::cv::aruco::getPredefinedDictionary(::cv::aruco::DICT_ARUCO_ORIGINAL);
-
 
     if (timestamp > m_lastTimestamp)
     {
@@ -188,7 +185,7 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             //Ok, let's detect
             try
             {
-                ::cv::aruco::detectMarkers(rgb, dictionary, markerCorners, detectedMarkers, parameters, rejectedCandidates);
+                ::cv::aruco::detectMarkers(rgb, m_dictionary, markerCorners, detectedMarkers,m_parameters, rejectedCandidates);
             }
             catch( ::cv::Exception& e )
             {
@@ -196,9 +193,7 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                 OSLM_ERROR("Detect marker exception : " << err_msg);
             }
 
-
             //for each marker, draw info and its boundaries in the image
-            unsigned int index = 0;
             size_t tagTLIndex  = 0;
             for(const auto& markersID : m_markers)
             {
@@ -240,14 +235,10 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                     sig->asyncEmit(timestamp);
                 }
 
-                ++index;
-                if(index >= 3)
-                {
-                    index = 0;
-                }
                 ++tagTLIndex;
             }
 
+            //Debugging
             if(m_debugMarkers)
             {
                 ::cv::Mat copyIm;
@@ -256,8 +247,12 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                 {
                     ::cv::aruco::drawDetectedMarkers(copyIm,markerCorners,detectedMarkers);
 
+                    ::cv::namedWindow("Aruco Detection", ::cv::WINDOW_AUTOSIZE);// Create a window for display.
+                     ::cv::imshow("Aruco Tag ",copyIm);
+                #ifdef WIN32
+                    ::cv::waitKey(100);
+                #endif
 
-                    ::cv::imshow("Aruco Tag ",copyIm);
                 }
                 catch( ::cv::Exception& e )
                 {

@@ -93,7 +93,43 @@
                 </scene>
             </service>
 
-            <service uid="trackingEditor" type="::uiTracking::SArucoTrackerEditor" autoConnect="yes" />
+            <service uid="trackingEditor" type="::guiQt::editor::SParameters" autoConnect="yes">
+                <parameters>
+                    <param type="int" name="Min Win. Adap. Threshold" key="adaptiveThreshWinSizeMin" defaultValue="3" min="0" max="50" />
+                    <param type="int" name="Max Win. Adap. Threshold" key="adaptiveThreshWinSizeMax" defaultValue="23" min="0" max="100"/>
+                    <param type="int" name="increment from min to max" key="adaptiveThreshWinSizeStep" defaultValue="10" min="1" max="100"/>
+                    <param type="double" name="Adap. Thresh Constant" key="adaptiveThreshConstant" defaultValue="7" min="0.0" max="100.0"/>
+
+                    <param type="double" name="Min. Marker Perimeter Rate" key="minMarkerPerimeterRate" defaultValue="0.03" min="0.0" max="100.0"/>
+                    <param type="double" name="Max. Marker Perimeter Rate" key="maxMarkerPerimeterRate" defaultValue="4.0" min="0.0" max="100.0"/>
+
+                    <param type="double" name="Poly. Approx. Accuracy Rate" key="polygonalApproxAccuracyRate" defaultValue="1.0" min="0.0" max="100.0"/>
+
+                    <param type="double" name="Min. Corner Dist. Rate" key="minCornerDistanceRate" defaultValue="0.05" min="0.0" max="5.0" />
+
+                    <param type="int" name="Min. Distance to Border" key="minDistanceToBorder" defaultValue="3" min="1" max="100" />
+
+                    <param type="double" name="Min. Marker Dist. Rate" key="minMarkerDistanceRate" defaultValue="0.05" min="0.0" max="5.0" />
+
+                    <param  type="bool" name="Corner Refinement" key="doCornerRefinement" defaultValue="true" />
+
+                    <param type="int" name="Min. Size Corner Ref." key="cornerRefinementWinSize" defaultValue="5" min="1" max="100" />
+                    <param type="int" name="Max. Iter. Corner Ref." key="cornerRefinementMaxIterations" defaultValue="30" min="1" max="100" />
+
+                    <param type="double" name="Min. Accuracy Corner Ref." key="cornerRefinementMinAccuracy" defaultValue="0.1" min="0.0" max="5.0" />
+
+                    <param type="int" name="Marker Order Bits" key="markerBorderBits" defaultValue="1" min="1" max="10" />
+                    <param type="int" name="Nb. of Bits for each cells" key="perspectiveRemovePixelPerCell" defaultValue="8" min="1" max="100" />
+
+                    <param type="double" name="Margin Width/Cells" key="perspectiveRemoveIgnoredMarginPerCell" defaultValue="0.13" min="0.0" max="5.0"/>
+                    <param type="double" name="Max. Nb of err. bits" key="maxErroneousBitsInBorderRate" defaultValue="0.35" min="0.0" max=".0"/>
+                    <param type="double" name="Min. Std Dev. in pix. decod." key="minOtsuStdDev" defaultValue="5.0" min="0.0" max="100.0"/>
+                    <param type="double" name="Error Corr. Rate" key="errorCorrectionRate" defaultValue="0.6" min="0.0" max="5.0"/>
+
+
+                </parameters>
+            </service>
+
 
             <service uid="tracker" type="::trackerAruco::SArucoTracker"  worker="tracking">
                 <in key="frameTL" uid="frameTL" autoConnect="yes"/>
@@ -105,12 +141,6 @@
                     <track>
                         <marker id="0,1,2,3,4,5,6,7,8,42,100,101,102,103,104,105" />
                     </track>
-                    <threshold>
-                        <method>ADPT_THRES</method>
-                        <blockSize>7</blockSize>
-                        <constant>7</constant>
-                    </threshold>
-                    <patternWidth>30</patternWidth>
                     <debugMarkers>yes</debugMarkers>
                 </config>
             </service>

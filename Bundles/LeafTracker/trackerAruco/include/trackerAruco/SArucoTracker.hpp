@@ -147,6 +147,9 @@ private:
 
     bool m_debugMarkers;
 
+    ::cv::aruco::DetectorParameters  m_parameters;
+    ::cv::aruco::Dictionary  m_dictionary;
+
     /// Marker vector [[0,1,2],[4,5,6]]
     MarkerIDVectorType m_markers;
     /// Signal to emit when
