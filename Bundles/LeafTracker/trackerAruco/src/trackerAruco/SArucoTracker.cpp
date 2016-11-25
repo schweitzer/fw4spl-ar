@@ -50,30 +50,17 @@ const ::fwServices::IService::KeyType s_TAGTL_INOUT_GROUP = "tagTL";
 SArucoTracker::SArucoTracker() throw ():
     m_lastTimestamp(0),
     m_isInitialized(false),
-    m_debugMarkers(false),
-    m_parameters(nullptr)
+    m_debugMarkers(false)
 {
     m_sigDetectionDone = newSignal<DetectionDoneSignalType>(s_DETECTION_DONE_SIG);
 
     newSlot(s_DETECT_MARKER_SLOT, &SArucoTracker::detectMarker, this);
-
-    //FIXME : Replace this by slots from SParameters (double, bool, etc...)
-    /*newSlot(s_CHANGE_METHOD_SLOT, &SArucoTracker::setMethod, this);
-    newSlot(s_CHANGE_CORNERREFINEMENT_SLOT, &SArucoTracker::setCornerRefinement, this);
-    newSlot(s_CHANGE_BLOCKSIZE_SLOT, &SArucoTracker::setBlockSize, this);
-    newSlot(s_CHANGE_CONSTANT_SLOT, &SArucoTracker::setConstant, this);
-    newSlot(s_CHANGE_BORDERWIDTH_SLOT, &SArucoTracker::setBorderWidth, this);
-    newSlot(s_CHANGE_PATTERNWIDTH_SLOT, &SArucoTracker::setPatternWidth, this);
-    newSlot(s_DETECT_MARKER_SLOT, &SArucoTracker::detectMarker, this);
-    newSlot(s_CHANGE_SPEED_SLOT, &SArucoTracker::setSpeed, this);
-    newSlot(s_DISPLAY_TAGS_SLOT, &SArucoTracker::displayTags, this);*/
 }
 
 //-----------------------------------------------------------------------------
 
 SArucoTracker::~SArucoTracker() throw ()
 {
-    delete m_parameters;
 }
 
 //-----------------------------------------------------------------------------
@@ -83,11 +70,6 @@ void SArucoTracker::configuring() throw (::fwTools::Failed)
     ::fwRuntime::ConfigurationElement::sptr cfg = m_configuration->findConfigurationElement("config");
     SLM_ASSERT("Tag 'config' not found.", cfg);
 
-
-    //TODO : Change parameters if we need to.
-    m_parameters = new ::cv::aruco::DetectorParameters();
-
-    m_dictionary = ::cv::aruco::getPredefinedDictionary(::cv::aruco::DICT_ARUCO_ORIGINAL);
 
     // gets marker informations
     {
@@ -148,10 +130,15 @@ void SArucoTracker::updating() throw (::fwTools::Failed)
 void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
 {
 
-
     // OpenCv Aruco Detection
     std::vector< std::vector< ::cv::Point2f> > markerCorners, rejectedCandidates;
-    std::vector< int > detectedMarkers;
+
+    //TODO : Change parameters if we need to.
+    ::cv::aruco::DetectorParameters  parameters;
+    ::cv::aruco::Dictionary  dictionary;
+
+    dictionary  = ::cv::aruco::getPredefinedDictionary(::cv::aruco::DICT_ARUCO_ORIGINAL);
+
 
     if (timestamp > m_lastTimestamp)
     {
@@ -185,7 +172,7 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             m_lastTimestamp = timestamp;
 
             const std::uint8_t* frameBuff = &buffer->getElement(0);
-            std::vector< ::aruco::Marker > detectedMarkers;
+            std::vector< int > detectedMarkers;
 
             // read the input image
             const ::cv::Size frameSize(static_cast<int>(frameTL->getWidth()),
@@ -194,17 +181,16 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
 
             // aruco expects a grey image and make a conversion at the beginning of the detect() method if it receives
             // a RGB image. However we have a RGBA image so we must make the conversion ourselves.
-            cv::Mat grey;
+            cv::Mat rgb;
             //inImage is BGRA (see constructor of ::cv::Mat)
-            cv::cvtColor(inImage, grey, CV_BGRA2RGB);
+            cv::cvtColor(inImage, rgb, CV_BGRA2RGB);
 
             //Ok, let's detect
-
             try
             {
-                ::cv::aruco::detectMarkers(grey, m_dictionary, markerCorners, detectedMarkers);
+                ::cv::aruco::detectMarkers(rgb, dictionary, markerCorners, detectedMarkers, parameters, rejectedCandidates);
             }
-            catch( cv::Exception& e )
+            catch( ::cv::Exception& e )
             {
                 const char* err_msg = e.what();
                 OSLM_ERROR("Detect marker exception : " << err_msg);
@@ -225,14 +211,14 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
                 {
                     for (unsigned int i = 0; i < detectedMarkers.size(); i++)
                     {
-                        if (detectedMarkers[i].id == markerID)
+                        if (detectedMarkers[i] == markerID)
                         {
                             //Push matrix
                             float markerBuffer[8];
                             for (size_t j = 0; j < 4; ++j)
                             {
-                                markerBuffer[j*2]     = detectedMarkers[i][j].x;
-                                markerBuffer[j*2 + 1] = detectedMarkers[i][j].y;
+                                markerBuffer[j*2]     = markerCorners[i][j].x;
+                                markerBuffer[j*2 + 1] = markerCorners[i][j].y;
                             }
                             if(trackerObject == nullptr)
                             {
@@ -265,13 +251,15 @@ void SArucoTracker::detectMarker(::fwCore::HiResClock::HiResClockType timestamp)
             if(m_debugMarkers)
             {
                 ::cv::Mat copyIm;
-                grey.copyTo(copyIm);
+                rgb.copyTo(copyIm);
                 try
                 {
                     ::cv::aruco::drawDetectedMarkers(copyIm,markerCorners,detectedMarkers);
+
+
                     ::cv::imshow("Aruco Tag ",copyIm);
                 }
-                catch( cv::Exception& e )
+                catch( ::cv::Exception& e )
                 {
                     const char* err_msg = e.what();
                     OSLM_ERROR("draw marker exception : " << err_msg);

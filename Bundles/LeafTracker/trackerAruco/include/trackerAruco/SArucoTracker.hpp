@@ -149,9 +149,6 @@ private:
 
     /// Marker vector [[0,1,2],[4,5,6]]
     MarkerIDVectorType m_markers;
-
-    ::cv::aruco::DetectorParameters* m_parameters;
-    ::cv::aruco::Dictionary m_dictionary;
     /// Signal to emit when
     DetectionDoneSignalType::sptr m_sigDetectionDone;
 };
